@@ -9,7 +9,6 @@ import os
 
 # --- GPIO 핀 설정 ---
 PIR_PIN = 4      # PIR 센서 GPIO4
-LED_PIN = 18     # PWM LED GPIO18
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(PIR_PIN, GPIO.IN)
@@ -33,11 +32,11 @@ def generate_filename():
     return now.strftime("CCTV_%Y-%m-%d_%H-%M-%S.avi")
 
 # --- 녹화 시작 함수 ---
-def start_recording(frame_shape, fourcc):
+def start_recording(frame_shape, fourcc,save_path):
     global video
     filename = generate_filename()
     print(f"[INFO] 녹화 시작: {filename}")
-    video_filename = os.path.join(save_video_folder, f"CCTV {filename}.avi")
+    video_filename = os.path.join(save_path, f"CCTV {filename}")
     video = cv2.VideoWriter(video_filename, fourcc, 20, (frame_shape[1], frame_shape[0]))
 
 # --- 녹화 종료 함수 ---
@@ -99,7 +98,7 @@ while True:
 
     # 녹화 조건: PIR 또는 움직임 감지 및 녹화 중이 아닐 때
     if (pir_detected or motion_detected) and not is_record:
-        start_recording(frame2.shape, fourcc)
+        start_recording(frame2.shape, fourcc, save_video_folder)
         is_record = True
         record_start_time = time.time()
 
