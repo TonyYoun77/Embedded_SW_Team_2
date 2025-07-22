@@ -60,7 +60,7 @@ signal.signal(signal.SIGINT, signal_handler)
 
 # --- 메인 코드 ---
 
-
+# check change
 # 카메라 초기화
 capture = cv2.VideoCapture(1) #웹카메라 사용
 capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
