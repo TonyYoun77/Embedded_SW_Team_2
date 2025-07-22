@@ -63,8 +63,8 @@ signal.signal(signal.SIGINT, signal_handler)
 
 # 카메라 초기화
 capture = cv2.VideoCapture(1) #웹카메라 사용
-capture.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
 
