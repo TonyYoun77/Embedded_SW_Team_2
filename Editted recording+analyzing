@@ -224,7 +224,7 @@ def signal_handler(sig, frame):
 signal.signal(signal.SIGINT, signal_handler)
 
 # --- 카메라 초기화 ---
-capture = cv2.VideoCapture(0) # 0번 카메라 (기본 웹캠)
+capture = cv2.VideoCapture(1) # 0번 카메라 (기본 웹캠)
 if not capture.isOpened():
     print("[ERROR] 카메라를 열 수 없습니다. 카메라가 연결되어 있는지 확인해주세요.")
     sys.exit(1)
