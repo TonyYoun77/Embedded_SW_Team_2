@@ -7,8 +7,7 @@ import sys
 import shutil
 import os
 from picamera2 import Picamera2, Preview
-from libcamera import controls, Encoder, Still, Stream, StreamConfiguration, Transform
-import libcamera
+from picamera2.encoders import H264Encoder
 
 # --- 경로 설정 ---
 save_video_folder = 'saved_videos'
@@ -24,7 +23,7 @@ video_filename = None
 
 # --- Picamera2 setup (H.264 인코딩을 위해 재구성) ---
 picam2 = Picamera2()
-video_config = picam2.create_video_configuration(main={"size": (1280, 720)}, transform=libcamera.Transform(hflip=True, vflip=True))
+video_config = picam2.create_video_configuration(main={"size": (1280, 720)})
 picam2.configure(video_config)
 picam2.start()
 
@@ -37,7 +36,10 @@ def generate_filename():
 def start_recording(output_filename):
     global video_filename
     video_filename = os.path.join(tmp_video_folder, output_filename)
-    picam2.start_recording(libcamera.Encoder(), video_filename)
+    
+    # H.264Encoder를 사용하여 하드웨어 인코딩 지정
+    encoder = H264Encoder(10000000) # 10Mbps 비트레이트
+    picam2.start_recording(encoder, video_filename)
     print(f"[REC] recording start: {output_filename}")
 
 # --- 녹화 종료 ---
