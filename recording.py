@@ -48,7 +48,8 @@ def stop_recording():
     print("[REC] recording end")
     picam2.stop_recording()
     if os.path.exists(video_filename):
-        shutil.move(video_filename, save_video_folder)
+        # 파일이 완전히 저장된 후, saved_videos 폴더로 이동합니다.
+        shutil.move(video_filename, os.path.join(save_video_folder, os.path.basename(video_filename)))
 
 # --- 초기 설정 ---
 font_path = 'fonts/SCDream6.otf'
@@ -113,7 +114,7 @@ except KeyboardInterrupt:
     print("System stopped because of keyboardinterrupt.")
     if is_record:
         picam2.stop_recording()
-        shutil.move(video_filename, save_video_folder)
+        shutil.move(video_filename, os.path.join(save_video_folder, os.path.basename(video_filename)))
     
     picam2.stop()
     cv2.destroyAllWindows()
