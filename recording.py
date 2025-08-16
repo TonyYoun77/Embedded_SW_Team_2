@@ -6,10 +6,11 @@ from PIL import ImageFont, ImageDraw, Image
 import sys
 import shutil
 import os
-from picamera2 import Picamera2, Preview # ⚠️  We'll use this!
+from picamera2 import Picamera2, Preview
+from libcamera import controls, Encoder, Still, Stream, StreamConfiguration, Transform
+import libcamera
 
 # --- 경로 설정 ---
-
 save_video_folder = 'saved_videos'
 tmp_video_folder = 'temporary_saved'
 os.makedirs(tmp_video_folder, exist_ok=True)
@@ -19,57 +20,53 @@ os.makedirs(save_video_folder, exist_ok=True)
 is_record = False
 record_start_time = 0
 record_duration = 15
-video = None
 video_filename = None
-# ⚠️ Picamera2 setup
+
+# --- Picamera2 setup (H.264 인코딩을 위해 재구성) ---
 picam2 = Picamera2()
-config = picam2.create_video_configuration(main={"size": (1280, 720)})
-picam2.configure(config)
+video_config = picam2.create_video_configuration(main={"size": (1280, 720)}, transform=libcamera.Transform(hflip=True, vflip=True))
+picam2.configure(video_config)
 picam2.start()
 
 # --- 녹화 파일명 생성 함수 ---
 def generate_filename():
     now = datetime.datetime.now()
-    return now.strftime("CCTV_%Y-%m-%d_%H-%M-%S.avi")
+    return now.strftime("CCTV_%Y-%m-%d_%H-%M-%S.mp4")
 
 # --- 녹화 시작 ---
-def start_recording(frame_shape, fourcc):
-    global video, video_filename
-    filename = generate_filename()
-    video_filename = os.path.join(tmp_video_folder, filename)
-    video = cv2.VideoWriter(video_filename, fourcc, 30, (frame_shape[1], frame_shape[0]))
-    print(f"[REC] recording start: {filename}")
+def start_recording(output_filename):
+    global video_filename
+    video_filename = os.path.join(tmp_video_folder, output_filename)
+    picam2.start_recording(libcamera.Encoder(), video_filename)
+    print(f"[REC] recording start: {output_filename}")
 
 # --- 녹화 종료 ---
 def stop_recording():
-    global video, video_filename
-    if video:
-        print("[REC] recording end")
-        video.release()
-        video = None
+    global video_filename
+    print("[REC] recording end")
+    picam2.stop_recording()
+    if os.path.exists(video_filename):
         shutil.move(video_filename, save_video_folder)
 
-# --- 카메라 초기화 ---
-fourcc = cv2.VideoWriter_fourcc(*'XVID')
-font = ImageFont.truetype('fonts/SCDream6.otf', 20)
-
-# ⚠️ Get the first frame from Picamera2
-frame1 = picam2.capture_array()
-frame1 = cv2.cvtColor(frame1, cv2.COLOR_RGB2BGR) 
-if frame1 is None:
-    print("[ERROR] Camera unavailable")
+# --- 초기 설정 ---
+font_path = 'fonts/SCDream6.otf'
+if not os.path.exists(font_path):
+    print("[ERROR] Font file not found. Please check the font path.")
     sys.exit(1)
-
-frame1_gray = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
-frame1_gray = cv2.GaussianBlur(frame1_gray, (21, 21), 0)
+font = ImageFont.truetype(font_path, 20)
 
 print("[REC] start recording (press q to stop)")
 
-while True:
-    try:
-        # ⚠️ Get subsequent frames from Picamera2
-        frame2 = picam2.capture_array()
-        frame2 = cv2.cvtColor(frame2, cv2.COLOR_RGB2BGR) # Convert from RGB to BGR
+# 프레임 변수 초기화
+frame1 = picam2.capture_array("main")
+frame1 = cv2.cvtColor(frame1, cv2.COLOR_RGB2BGR)
+frame1_gray = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
+frame1_gray = cv2.GaussianBlur(frame1_gray, (21, 21), 0)
+
+try:
+    while True:
+        frame2 = picam2.capture_array("main")
+        frame2 = cv2.cvtColor(frame2, cv2.COLOR_RGB2BGR)
         if frame2 is None:
             break
 
@@ -92,12 +89,13 @@ while True:
         frame2 = np.array(frame_pil)
 
         if motion_detected and not is_record:
-            start_recording(frame2.shape, fourcc)
+            filename = generate_filename()
+            start_recording(filename)
             is_record = True
             record_start_time = time.time()
 
         if is_record:
-            video.write(frame2)
+            # ⚠️ picam2.start_recording()을 사용하면 write 함수는 필요 없습니다.
             cv2.circle(frame2, (620, 15), 5, (0, 0, 255), -1)
             if time.time() - record_start_time > record_duration:
                 stop_recording()
@@ -109,10 +107,12 @@ while True:
         if key == ord('q') or key == 27:
             raise KeyboardInterrupt
 
-    except KeyboardInterrupt:
-        print("System stopped because of keyboardinterrupt.")
-        stop_recording()
-        # ⚠️ Stop the Picamera2 instance
-        picam2.stop()
-        cv2.destroyAllWindows()
-        sys.exit(0)
+except KeyboardInterrupt:
+    print("System stopped because of keyboardinterrupt.")
+    if is_record:
+        picam2.stop_recording()
+        shutil.move(video_filename, save_video_folder)
+    
+    picam2.stop()
+    cv2.destroyAllWindows()
+    sys.exit(0)
