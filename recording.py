@@ -23,14 +23,14 @@ video_filename = None
 
 # --- Picamera2 설정
 picam2 = Picamera2()
-video_config = picam2.create_video_configuration(main={"size": (1280, 720)})
+video_config = picam2.create_video_configuration(main={'size': (1280, 720)})
 picam2.configure(video_config)
 picam2.start()
 
 # --- 녹화 파일명 생성 함수 ---
 def generate_filename():
     now = datetime.datetime.now()
-    return now.strftime("CCTV_%Y-%m-%d_%H-%M-%S.mp4")
+    return now.strftime('CCTV_%Y-%m-%d_%H-%M-%S.mp4')
 
 # --- 움직임 감지 함수 ---
 
@@ -56,12 +56,12 @@ def start_recording(output_filename):
     # H.264Encoder를 사용하여 하드웨어 인코딩 지정
     encoder = H264Encoder(10000000) # 10Mbps 비트레이트
     picam2.start_recording(encoder, video_filename)
-    print(f"[REC] recording start: {output_filename}")
+    print(f'[REC] recording start: {output_filename}')
 
 # --- 녹화 종료 ---
 def stop_recording():
     global video_filename
-    print("[REC] recording end")
+    print('[REC] recording end')
     picam2.stop_recording()
     if os.path.exists(video_filename):
         # 파일이 완전히 저장된 후, saved_videos 폴더로 이동
@@ -70,19 +70,19 @@ def stop_recording():
 # --- 초기 설정 ---
 font_path = 'fonts/SCDream6.otf'
 if not os.path.exists(font_path):
-    print("[ERROR] Font file not found. Please check the font path.")
+    print('[ERROR] Font file not found. Please check the font path.')
     sys.exit(1)
 font = ImageFont.truetype(font_path, 20)
 
-print("[REC] start recording (press q to stop)")
+print('[REC] start recording (press q to stop)')
 
 # 프레임 변수 초기화
-frame1 = picam2.capture_array("main")
+frame1 = picam2.capture_array('main')
 frame1 = cv2.cvtColor(frame1, cv2.COLOR_RGB2BGR)
 
 try:
     while True:
-        frame2 = picam2.capture_array("main")
+        frame2 = picam2.capture_array('main')
         frame2 = cv2.cvtColor(frame2, cv2.COLOR_RGB2BGR)
         if frame2 is None:
             break
@@ -90,13 +90,13 @@ try:
         motion = motion_detected(frame1, frame2)
 
         now = datetime.datetime.now()
-        nowDatetime = now.strftime("%Y-%m-%d %H:%M:%S")
+        nowDatetime = now.strftime('%Y-%m-%d %H:%M:%S')
 
         # 타임스탬프 표시
         cv2.rectangle(frame2, (10, 15), (300, 35), (0, 0, 0), -1)
         frame_pil = Image.fromarray(frame2)
         draw = ImageDraw.Draw(frame_pil)
-        draw.text((10, 15), f"CCTV {nowDatetime}", font=font, fill=(255, 255, 255))
+        draw.text((10, 15), f'CCTV {nowDatetime}', font=font, fill=(255, 255, 255))
         frame2 = np.array(frame_pil)
 
         if motion and not is_record:
@@ -118,7 +118,7 @@ try:
             raise KeyboardInterrupt
 
 except KeyboardInterrupt:
-    print("System stopped because of keyboardinterrupt.")
+    print('System stopped because of keyboardinterrupt.')
     if is_record:
         picam2.stop_recording()
         shutil.move(video_filename, os.path.join(save_video_folder, os.path.basename(video_filename)))
