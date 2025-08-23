@@ -64,7 +64,7 @@ def stop_recording():
     print("[REC] recording end")
     picam2.stop_recording()
     if os.path.exists(video_filename):
-        # 파일이 완전히 저장된 후, saved_videos 폴더로 이동합니다.
+        # 파일이 완전히 저장된 후, saved_videos 폴더로 이동
         shutil.move(video_filename, os.path.join(save_video_folder, os.path.basename(video_filename)))
 
 # --- 초기 설정 ---
