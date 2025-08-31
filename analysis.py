@@ -16,7 +16,7 @@ os.makedirs(normal_folder, exist_ok=True)
 os.makedirs(thumbnail_folder, exist_ok=True)
 
 # --- 위험 클래스 설정 ---
-DANGER_CLASSES = ['fall','fight','fire_or_gas','weapons']  # 이 모델 내 위험한 상황에 해당하는 클래스
+DANGER_CLASSES = ['fall','fight','fire','weapons']  # 이 모델 내 위험한 상황에 해당하는 클래스
 
 # --- YOLO 모델 로드 ---
 model = YOLO('best.pt') 
@@ -36,30 +36,58 @@ def analyze_video(video_path):
     global thumbnail_folder
     cap = cv2.VideoCapture(video_path)
     is_danger = False
+    danger_frame_number = -1
     frame_count = 0
-    thumbnail_name = os.path.splitext(os.path.basename(video_path))[0] #비디오 파일 이름에서 일부 사용.
+    thumbnail_name = os.path.splitext(os.path.basename(video_path))[0]
+
+    # 비디오의 전체 프레임 수를 미리 얻어옴
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
     while True:
         ret, frame = cap.read()
         if not ret:
             break
         frame_count += 1
-        if frame_count % 10 != 0:    #10프레임마다 1번씩 추론 후 위험 판단.
+        
+        # 10프레임마다 1번씩 추론 후 위험 판단
+        if frame_count % 10 != 0:
             continue
-        results = model(frame) 
-        if is_dangerous(results): #위험이 감지되면 해당 위험 frame을 jpg 파일로 생성 후 저장.
+        
+        #frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        
+        results = model(frame)
+        if is_dangerous(results):
+            is_danger = True
+            danger_frame_number = frame_count  # 위험이 감지된 프레임 번호 저장
+            break  # 위험이 감지되면 즉시 분석 중단
+
+    # 위험 감지 시, 썸네일 저장
+    if is_danger:
+        # 썸네일로 사용할 프레임 번호 결정
+        target_frame_number = danger_frame_number + 10
+        
+        # 10프레임 뒤가 전체 프레임 수를 초과하면, 원래 위험 감지 프레임을 사용
+        if target_frame_number >= total_frames:
+            target_frame_number = danger_frame_number
+        
+        # 썸네일 저장을 위해 타겟 프레임 위치로 이동
+        cap.set(cv2.CAP_PROP_POS_FRAMES, target_frame_number)
+        ret, frame = cap.read()
+        
+        if ret:
             thumbnail_filename = f'{thumbnail_name}.jpg'
             thumbnail_path = os.path.join(thumbnail_folder, thumbnail_filename)
             cv2.imwrite(thumbnail_path, frame)
-            is_danger = True
-            break
-
+            print(f"[정보] 프레임({target_frame_number})을 썸네일로 저장했습니다.")
+        else:
+            print(f"[경고] 프레임({target_frame_number})을 읽어오는 데 실패했습니다.")
+    
     cap.release()
 
     final_folder = danger_folder if is_danger else normal_folder
     final_path = os.path.join(final_folder, os.path.basename(video_path))
     shutil.move(video_path, final_path)
-    if is_danger == True:
+    if is_danger:
         print('[분석결과 : 위험 감지됨]')
     else:
         print('[분석결과 : 이상 없음]')
