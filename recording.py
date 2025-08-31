@@ -22,9 +22,10 @@ record_start_time = 0
 record_duration = 15
 video = None
 video_filename = None
-# ⚠️ Picamera2 설정
+
+#Picamera2 설정
 picam2 = Picamera2()
-# 여기서 해상도를 설정할 수 있습니다
+# 해상도 설정 및 화면 뒤집기(카메라 모듈이 뒤집힌 상태로 고정됨)
 config = picam2.create_video_configuration(main={"size": (1280, 720)}, transform = Transform(hflip=True, vflip=True))
 picam2.configure(config)
 picam2.start()
@@ -57,13 +58,13 @@ def stop_recording():
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
 font = ImageFont.truetype('SCDream6.otf', 20)
 
-# ⚠️ Picamera2에서 첫 번째 프레임 가져오기
+#Picamera2에서 첫 번째 프레임 가져오기
 frame1 = picam2.capture_array()
 frame1 = cv2.cvtColor(frame1, cv2.COLOR_RGB2BGR) # RGB를 BGR로 변환
-if frame1 is None:
+if frame1 is None: 
     print("[ERROR] Camera unavailable")
     sys.exit(1)
-
+#프레임을 흑백으로 처리하여 픽셀 차이 계산하기
 frame1_gray = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
 frame1_gray = cv2.GaussianBlur(frame1_gray, (21, 21), 0)
 
@@ -71,7 +72,7 @@ print("[REC] start recording (press q to stop)")
 
 while True:
     try:
-        # ⚠️ Picamera2에서 다음 프레임 가져오기
+        #Picamera2에서 다음 프레임 가져오기
         frame2 = picam2.capture_array()
         frame2 = cv2.cvtColor(frame2, cv2.COLOR_RGB2BGR) # RGB를 BGR로 변환
         if frame2 is None:
@@ -89,7 +90,7 @@ while True:
         nowDatetime = now.strftime("%Y-%m-%d %H:%M:%S")
 
         # 타임스탬프 표시
-        cv2.rectangle(frame2, (10, 15), (320, 35), (0, 0, 0), -1)
+        cv2.rectangle(frame2, (10, 15), (300, 35), (0, 0, 0), -1)
         frame_pil = Image.fromarray(frame2)
         draw = ImageDraw.Draw(frame_pil)
         draw.text((10, 15), f"CCTV {nowDatetime}", font=font, fill=(255, 255, 255))
@@ -102,7 +103,7 @@ while True:
 
         if is_record:
             video.write(frame2)
-            cv2.circle(frame2, (620, 15), 5, (0, 0, 255), -1)
+            cv2.circle(frame2, (1260, 15), 5, (0, 0, 255), -1)
             if time.time() - record_start_time > record_duration:
                 stop_recording()
                 is_record = False
