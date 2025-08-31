@@ -23,9 +23,9 @@ list_lock = threading.Lock() #파일 용량 측정 혹은 삭제 중 새로운 �
 
 
 # --- 이메일 설정 ---
-SENDER_EMAIL = 'YOUR_EMAIL@gmail.com'  # 보내는 사람 이메일 주소
-SENDER_PASSWORD = 'YOUR_PASSWORD'      # Gmail 앱 비밀번호
-RECIPIENT_EMAIL = 'RECIPIENT_EMAIL@example.com' # 받는 사람 이메일 주소
+SENDER_EMAIL = 'EMAIL_SENDER'  # 보내는 사람 이메일 주소
+SENDER_PASSWORD = 'APP_PASSWORD'      # Gmail 앱 비밀번호
+RECIPIENT_EMAIL = 'EMAIL_RECEIVER' # 받는 사람 이메일 주소
 SMTP_SERVER = 'smtp.gmail.com'
 SMTP_PORT = 587 
 
@@ -75,6 +75,8 @@ class ThumbnailHandler(FileSystemEventHandler):
         # 디렉토리가 아니고, 이미지 파일인 경우에만 처리
         if not event.is_directory and event.src_path.endswith(('.jpg', '.jpeg', '.png')):
             print(f'[!] 썸네일 파일 생성 감지: {event.src_path}')
+            
+            time.sleep(0.25) 
             
             # 이메일 내용 설정
             subject = 'CCTV 위험 상황 감지 알림'
