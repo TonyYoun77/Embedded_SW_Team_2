@@ -7,9 +7,10 @@ import sys
 import shutil
 import os
 from picamera2 import Picamera2, Preview
-from picamera2.encoders import H264Encoder
+from libcamera import Transform
 
 # --- 경로 설정 ---
+
 save_video_folder = 'saved_videos'
 tmp_video_folder = 'temporary_saved'
 os.makedirs(tmp_video_folder, exist_ok=True)
@@ -19,110 +20,102 @@ os.makedirs(save_video_folder, exist_ok=True)
 is_record = False
 record_start_time = 0
 record_duration = 15
+video = None
 video_filename = None
-
-# --- Picamera2 설정
+# ⚠️ Picamera2 설정
 picam2 = Picamera2()
-video_config = picam2.create_video_configuration(main={'size': (1280, 720)})
-picam2.configure(video_config)
+# 여기서 해상도를 설정할 수 있습니다
+config = picam2.create_video_configuration(main={"size": (1280, 720)}, transform = Transform(hflip=True, vflip=True))
+picam2.configure(config)
 picam2.start()
+
 
 # --- 녹화 파일명 생성 함수 ---
 def generate_filename():
     now = datetime.datetime.now()
-    return now.strftime('CCTV_%Y-%m-%d_%H-%M-%S.mp4')
-
-# --- 움직임 감지 함수 ---
-
-def motion_detected(a, b):
-    a_gray = cv2.cvtColor(a, cv2.COLOR_BGR2GRAY)
-    a_gray = cv2.GaussianBlur(a_gray, (21, 21), 0)
-    b_gray = cv2.cvtColor(b, cv2.COLOR_BGR2GRAY)
-    b_gray = cv2.GaussianBlur(b, (21, 21), 0)
-    frame_diff = cv2.absdiff(a_gray, b_gray)
-    thresh = cv2.threshold(frame_diff, 25, 255, cv2.THRESH_BINARY)[1]
-    motion_level = np.sum(thresh) / 255
-    if motion_level > 2000:
-        return True
-    else:
-        return False
-
+    return now.strftime("CCTV_%Y-%m-%d_%H-%M-%S.avi")
 
 # --- 녹화 시작 ---
-def start_recording(output_filename):
-    global video_filename
-    video_filename = os.path.join(tmp_video_folder, output_filename)
+def start_recording(frame_shape, fourcc):
+    global video, video_filename
+    filename = generate_filename()
+    video_filename = os.path.join(tmp_video_folder, filename)
     
-    # H.264Encoder를 사용하여 하드웨어 인코딩 지정
-    encoder = H264Encoder(10000000) # 10Mbps 비트레이트
-    picam2.start_recording(encoder, video_filename)
-    print(f'[REC] recording start: {output_filename}')
+    video = cv2.VideoWriter(video_filename, fourcc, 20, (frame_shape[1], frame_shape[0]))
+    print(f"[REC] recording start: {filename}")
 
 # --- 녹화 종료 ---
 def stop_recording():
-    global video_filename
-    print('[REC] recording end')
-    picam2.stop_recording()
-    if os.path.exists(video_filename):
-        # 파일이 완전히 저장된 후, saved_videos 폴더로 이동
-        shutil.move(video_filename, os.path.join(save_video_folder, os.path.basename(video_filename)))
+    global video, video_filename
+    if video:
+        print("[REC] recording end")
+        video.release()
+        video = None
+        shutil.move(video_filename, save_video_folder)
 
-# --- 초기 설정 ---
-font_path = 'fonts/SCDream6.otf'
-if not os.path.exists(font_path):
-    print('[ERROR] Font file not found. Please check the font path.')
+# --- 카메라 초기화 ---
+fourcc = cv2.VideoWriter_fourcc(*'XVID')
+font = ImageFont.truetype('SCDream6.otf', 20)
+
+# ⚠️ Picamera2에서 첫 번째 프레임 가져오기
+frame1 = picam2.capture_array()
+frame1 = cv2.cvtColor(frame1, cv2.COLOR_RGB2BGR) # RGB를 BGR로 변환
+if frame1 is None:
+    print("[ERROR] Camera unavailable")
     sys.exit(1)
-font = ImageFont.truetype(font_path, 20)
 
-print('[REC] start recording (press q to stop)')
+frame1_gray = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
+frame1_gray = cv2.GaussianBlur(frame1_gray, (21, 21), 0)
 
-# 프레임 변수 초기화
-frame1 = picam2.capture_array('main')
-frame1 = cv2.cvtColor(frame1, cv2.COLOR_RGB2BGR)
+print("[REC] start recording (press q to stop)")
 
-try:
-    while True:
-        frame2 = picam2.capture_array('main')
-        frame2 = cv2.cvtColor(frame2, cv2.COLOR_RGB2BGR)
+while True:
+    try:
+        # ⚠️ Picamera2에서 다음 프레임 가져오기
+        frame2 = picam2.capture_array()
+        frame2 = cv2.cvtColor(frame2, cv2.COLOR_RGB2BGR) # RGB를 BGR로 변환
         if frame2 is None:
             break
-        
-        motion = motion_detected(frame1, frame2)
+
+        frame2_gray = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
+        frame2_gray = cv2.GaussianBlur(frame2_gray, (21, 21), 0)
+
+        frame_diff = cv2.absdiff(frame1_gray, frame2_gray)
+        thresh = cv2.threshold(frame_diff, 25, 255, cv2.THRESH_BINARY)[1]
+        motion_level = np.sum(thresh) / 255
+        motion_detected = motion_level > 2000
 
         now = datetime.datetime.now()
-        nowDatetime = now.strftime('%Y-%m-%d %H:%M:%S')
+        nowDatetime = now.strftime("%Y-%m-%d %H:%M:%S")
 
         # 타임스탬프 표시
-        cv2.rectangle(frame2, (10, 15), (300, 35), (0, 0, 0), -1)
+        cv2.rectangle(frame2, (10, 15), (320, 35), (0, 0, 0), -1)
         frame_pil = Image.fromarray(frame2)
         draw = ImageDraw.Draw(frame_pil)
-        draw.text((10, 15), f'CCTV {nowDatetime}', font=font, fill=(255, 255, 255))
+        draw.text((10, 15), f"CCTV {nowDatetime}", font=font, fill=(255, 255, 255))
         frame2 = np.array(frame_pil)
 
-        if motion and not is_record:
-            filename = generate_filename()
-            start_recording(filename)
+        if motion_detected and not is_record:
+            start_recording(frame2.shape, fourcc)
             is_record = True
             record_start_time = time.time()
 
         if is_record:
+            video.write(frame2)
             cv2.circle(frame2, (620, 15), 5, (0, 0, 255), -1)
             if time.time() - record_start_time > record_duration:
                 stop_recording()
                 is_record = False
 
         cv2.imshow("output", frame2)
-        frame1 = frame2.copy()
+        frame1_gray = frame2_gray.copy()
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q') or key == 27:
             raise KeyboardInterrupt
 
-except KeyboardInterrupt:
-    print('System stopped because of keyboardinterrupt.')
-    if is_record:
-        picam2.stop_recording()
-        shutil.move(video_filename, os.path.join(save_video_folder, os.path.basename(video_filename)))
-    
-    picam2.stop()
-    cv2.destroyAllWindows()
-    sys.exit(0)
+    except KeyboardInterrupt:
+        print("System stopped because of keyboardinterrupt.")
+        stop_recording()
+        picam2.stop()
+        cv2.destroyAllWindows()
+        sys.exit(0)
