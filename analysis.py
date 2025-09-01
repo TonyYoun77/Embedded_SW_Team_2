@@ -52,10 +52,11 @@ def analyze_video(video_path):
         # 10프레임마다 1번씩 추론 후 위험 판단
         if frame_count % 10 != 0:
             continue
+
+        #프레임을 640*360으로 변환하기
+        resized_frame = cv2.resize(frame, (640, 360))
         
-        #frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        
-        results = model(frame)
+        results = model(resized_frame)
         if is_dangerous(results):
             is_danger = True
             danger_frame_number = frame_count  # 위험이 감지된 프레임 번호 저장
